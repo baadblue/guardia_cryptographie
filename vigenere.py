@@ -14,6 +14,6 @@ def vigenere(chain, key):
         else:
             keyIndex += 1
     return newChain
-
+ 
 if __name__ == "__main__":
     print(vigenere("Hello world!", "testee"))
