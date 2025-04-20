@@ -14,7 +14,8 @@ def calculate_entropy(password):
     
     return math.log2(lenght_alphabet)*len(password)
 
-print(calculate_entropy("l0l"))
+if __name__ == "__main__":
+    print(calculate_entropy("l0l"))
 
 '''
 Recommandations de la CNIL pour des niveaux de sécurité équivalent par rapport aux systèmes de vérifications en parallèle du mot de passe : 
