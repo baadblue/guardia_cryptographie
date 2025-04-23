@@ -47,7 +47,7 @@ class HillCipher():
             logger.error("Les matrices de clé ou inverse ne sont pas inversibles.")
             raise ValueError("Erreur : matrice de clé non inversible.", 4)
 
-        logger.info("Initialisation de la classe HillCipher terminée avec succès.")
+        logger.debug("Initialisation de la classe HillCipher terminée avec succès.")
 
     def validate_matrix(self, matrix):
         """
