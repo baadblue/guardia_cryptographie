@@ -21,13 +21,13 @@ class HillCipher():
         4 : Matrice de clé non inversible
         5 : Erreur inattendue
         """
-        logger.info("Initialisation de la classe HillCipher.")
+        logger.debug("Initialisation de la classe HillCipher.")
         load_dotenv()
 
         try:
             self.key_matrix = json.loads(os.getenv("HILL_KEY", "[]"))
             self.key_matrix_inverse = json.loads(os.getenv("HILL_KEY_INVERSE", "[]"))
-            logger.info("Matrices de clé chargées depuis les variables d'environnement.")
+            logger.debug("Matrices de clé chargées depuis les variables d'environnement.")
         except json.JSONDecodeError as e:
             logger.error("Erreur lors du chargement des matrices de clé : %s", str(e))
             raise ValueError("Erreur : matrices de clé mal formées.", 1)
