@@ -1,12 +1,5 @@
 import logging
 
-logging.basicConfig(
-        filename="app.log",  # Fichier de log
-        filemode="a",             # Mode d'écriture : "a" pour ajouter, "w" pour écraser
-        level=logging.DEBUG,      # Niveau de log
-        format="[%(asctime)s] - %(name)s - %(levelname)s - %(message)s",  # Format des messages
-        encoding="utf-8"          # Encodage
-    )
 logger = logging.getLogger("CesarCipher")
 
 class CesarCipher:
