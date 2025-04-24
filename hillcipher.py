@@ -39,12 +39,12 @@ class HillCipher():
         4 : Matrice de clé non inversible
         5 : Erreur inattendue
         """
-        logger.debug("Chargement des matrices de clé depuis les variables d'environnement.")
+        logger.debug("Chargement des matrices de clé depuis les variables d'environnement.")           
+        
+        load_dotenv()
         if not os.getenv("HILL_KEY") or not os.getenv("HILL_KEY_INVERSE"):
             logger.debug("Variables d'environnement non définies.")
             raise ValueError("Erreur : variables d'environnement non définies.", 1)
-            
-        load_dotenv()
 
         try:
             self.key_matrix = json.loads(os.getenv("HILL_KEY", "[]"))
