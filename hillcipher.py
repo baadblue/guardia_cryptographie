@@ -9,7 +9,25 @@ import logging
 logger = logging.getLogger("HillCipher")
 
 class HillCipher():
-    def __init__(self):
+    def __init__(self, load_from_env=True):
+        """
+        Initialise la classe HillCipher. Charge les matrices de clé et inverse depuis les variables d'environnement
+        
+        :param load_from_env: si True, charge les matrices depuis les variables d'environnement
+        """
+        logger.debug("Initialisation de la classe HillCipher.")
+
+        self.key_matrix = None
+        self.key_matrix_inverse = None
+        if load_from_env:
+            self.load_key_matrix()
+        else:
+            self.key_matrix = self.generate_key_matrix()
+            self.key_matrix_inverse = self.generate_key_matrix_inverse(self.key_matrix)
+        logger.debug("Clé et matrice inverse initialisées.")
+
+
+    def load_key_matrix(self):
         """
         Charge la matrice de la clé et la matrice inverse de la clé à partir des variables d'environnement.
         Si elles ne sont pas définies, génère une nouvelle matrice de clé et sa matrice inverse.
@@ -21,7 +39,11 @@ class HillCipher():
         4 : Matrice de clé non inversible
         5 : Erreur inattendue
         """
-        logger.debug("Initialisation de la classe HillCipher.")
+        logger.debug("Chargement des matrices de clé depuis les variables d'environnement.")
+        if not os.getenv("HILL_KEY") or not os.getenv("HILL_KEY_INVERSE"):
+            logger.debug("Variables d'environnement non définies.")
+            raise ValueError("Erreur : variables d'environnement non définies.", 1)
+            
         load_dotenv()
 
         try:
@@ -47,7 +69,7 @@ class HillCipher():
             logger.error("Les matrices de clé ou inverse ne sont pas inversibles.")
             raise ValueError("Erreur : matrice de clé non inversible.", 4)
 
-        logger.debug("Initialisation de la classe HillCipher terminée avec succès.")
+        logger.debug("Matrices de clé et inverse chargées avec succès.")
 
     def validate_matrix(self, matrix):
         """
@@ -89,8 +111,13 @@ class HillCipher():
         while attempts < max_attempts:
             matrix = [[secrets.randbelow(26) for _ in range(size)] for _ in range(size)]
             if self.is_invertible(matrix)[0]:
-                logger.debug("Matrice de clé générée après %d tentatives.", attempts + 1)
-                return matrix
+                try:
+                    self.validate_matrix(matrix)
+                    logger.debug("Matrice de clé générée après %d tentatives.", attempts + 1)
+                    return matrix
+                except ValueError:
+                    logger.debug("Matrice générée invalide, nouvelle tentative.")
+                    continue
             attempts += 1
         logger.error("Impossible de générer une matrice inversible après %d tentatives.", max_attempts)
         raise RuntimeError(f"Impossible de générer une matrice inversible après {max_attempts} tentatives.")
