@@ -199,19 +199,19 @@ class HillCipher():
         :return: liste de blocs de texte
         """
         logger.debug("Division du texte en blocs de taille %d.", size)
-        splited_text = [""]
+        splitted_text = [""]
         index = 0
         for car in text:
             if car.isalpha():
                 if index == size:
-                    splited_text.append("")
+                    splitted_text.append("")
                     index = 0
-                splited_text[-1] += car.upper()
+                splitted_text[-1] += car.upper()
                 index += 1
-        while len(splited_text[-1]) != size:
-            splited_text[-1] += 'X'
-        logger.debug("Texte divisé en blocs : %s", splited_text)
-        return splited_text
+        while len(splitted_text[-1]) != size:
+            splitted_text[-1] += 'X'
+        logger.debug("Texte divisé en blocs : %s", splitted_text)
+        return splitted_text
 
     def hill_encryption(self, text, mod=0):
         """
