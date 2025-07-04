@@ -42,32 +42,64 @@ class HillCipher():
         logger.debug("Chargement des matrices de clé depuis les variables d'environnement.")           
         
         load_dotenv()
-        if not os.getenv("HILL_KEY") or not os.getenv("HILL_KEY_INVERSE"):
-            logger.debug("Variables d'environnement non définies.")
-            raise ValueError("Erreur : variables d'environnement non définies.", 1)
+        env_key = os.getenv("HILL_KEY")
+        env_key_inverse = os.getenv("HILL_KEY_INVERSE")
+
+        if not env_key:
+            logger.error("Variable d'environnement HILL_KEY non définie.")
+            raise ValueError("Erreur : HILL_KEY non définie.", 1)
 
         try:
-            self.key_matrix = json.loads(os.getenv("HILL_KEY", "[]"))
-            self.key_matrix_inverse = json.loads(os.getenv("HILL_KEY_INVERSE", "[]"))
-            logger.debug("Matrices de clé chargées depuis les variables d'environnement.")
+            self.key_matrix = json.loads(env_key)
+            logger.debug("Matrice de clé HILL_KEY chargée depuis les variables d'environnement.")
         except json.JSONDecodeError as e:
-            logger.error("Erreur lors du chargement des matrices de clé : %s", str(e))
-            raise ValueError("Erreur : matrices de clé mal formées.", 1)
-        except Exception as e:
-            logger.exception("Erreur inattendue lors du chargement des matrices de clé : %s", str(e))
-            raise ValueError("Erreur inattendue lors du chargement des matrices de clé.", 5)
+            logger.error("Erreur lors du chargement de HILL_KEY : %s", str(e))
+            raise ValueError("Erreur : HILL_KEY mal formée.", 1)
 
-        if not self.key_matrix or not self.key_matrix_inverse:
-            logger.error("Les matrices de clé ou inverse sont vides.")
-            raise ValueError("Erreur : matrice de clé vide.", 2)
+        if not self.key_matrix:
+            logger.error("HILL_KEY est vide.")
+            raise ValueError("Erreur : HILL_KEY est vide.", 2)
+        if not self.validate_matrix(self.key_matrix): # validate_matrix raises its own errors
+             # Error already logged by validate_matrix if it returns False implicitly (though it raises)
+            raise ValueError("Erreur : HILL_KEY n'est pas une matrice valide.", 3) # Should be caught by validate_matrix
+        if not self.is_invertible(self.key_matrix)[0]:
+            logger.error("HILL_KEY n'est pas inversible.")
+            raise ValueError("Erreur : HILL_KEY non inversible.", 4)
 
-        if not self.validate_matrix(self.key_matrix) or not self.validate_matrix(self.key_matrix_inverse):
-            logger.error("Les matrices de clé ou inverse ne sont pas carrées.")
-            raise ValueError("Erreur : matrice de clé non carrée.", 3)
+        if env_key_inverse:
+            try:
+                self.key_matrix_inverse = json.loads(env_key_inverse)
+                logger.debug("Matrice de clé inverse HILL_KEY_INVERSE chargée.")
+                if not self.key_matrix_inverse: # check if empty list after load
+                    logger.warn("HILL_KEY_INVERSE est définie mais vide dans .env. Tentative de calcul à partir de HILL_KEY.")
+                    self.key_matrix_inverse = None # Force recalculation
+                elif not self.validate_matrix(self.key_matrix_inverse):
+                    raise ValueError("Erreur : HILL_KEY_INVERSE n'est pas une matrice valide.", 3)
+                elif not self.is_invertible(self.key_matrix_inverse)[0]: # Should be an inverse, so also invertible
+                    logger.warn("HILL_KEY_INVERSE chargée n'est pas inversible. Tentative de calcul à partir de HILL_KEY.")
+                    self.key_matrix_inverse = None # Force recalculation
+            except json.JSONDecodeError as e:
+                logger.warn("Erreur lors du chargement de HILL_KEY_INVERSE : %s. Tentative de calcul à partir de HILL_KEY.", str(e))
+                self.key_matrix_inverse = None # Force recalculation
+            except ValueError as e: # Catch validation errors for inverse
+                logger.warn(f"Erreur de validation pour HILL_KEY_INVERSE: {e}. Tentative de calcul à partir de HILL_KEY.")
+                self.key_matrix_inverse = None # Force recalculation
 
-        if not self.is_invertible(self.key_matrix)[0] or not self.is_invertible(self.key_matrix_inverse)[0]:
-            logger.error("Les matrices de clé ou inverse ne sont pas inversibles.")
-            raise ValueError("Erreur : matrice de clé non inversible.", 4)
+        if not self.key_matrix_inverse:
+            logger.info("HILL_KEY_INVERSE non chargée ou invalide, tentative de calcul à partir de HILL_KEY.")
+            try:
+                self.key_matrix_inverse = self.generate_key_matrix_inverse(self.key_matrix)
+                logger.info("Matrice de clé inverse calculée avec succès à partir de HILL_KEY.")
+            except Exception as e:
+                logger.error("Impossible de calculer HILL_KEY_INVERSE à partir de HILL_KEY : %s", str(e))
+                raise ValueError("Erreur : Impossible de calculer HILL_KEY_INVERSE.", 5)
+
+        # Final check for the inverse matrix (either loaded or generated)
+        if not self.key_matrix_inverse: # Should not happen if generation was successful
+             logger.error("La matrice inverse n'a pas pu être définie.")
+             raise ValueError("Erreur : La matrice inverse n'a pas pu être définie.", 2)
+        # Validation for the determined key_matrix_inverse is implicitly done if generated.
+        # If loaded, it was validated or generation was attempted.
 
         logger.debug("Matrices de clé et inverse chargées avec succès.")
 
@@ -199,17 +231,28 @@ class HillCipher():
         :return: liste de blocs de texte
         """
         logger.debug("Division du texte en blocs de taille %d.", size)
-        splitted_text = [""]
-        index = 0
-        for car in text:
-            if car.isalpha():
-                if index == size:
-                    splitted_text.append("")
-                    index = 0
-                splitted_text[-1] += car.upper()
-                index += 1
-        while len(splitted_text[-1]) != size:
-            splitted_text[-1] += 'X'
+        processed_chars = [c.upper() for c in text if c.isalpha()]
+
+        # Pad with 'X' if necessary
+        while len(processed_chars) % size != 0:
+            processed_chars.append('X')
+
+        if not processed_chars and size > 0: # Handle empty text case after filtering
+            processed_chars = ['X'] * size
+
+        splitted_text = []
+        for i in range(0, len(processed_chars), size):
+            splitted_text.append("".join(processed_chars[i:i+size]))
+
+        # Ensure that if the original text was empty and size > 0,
+        # we still return a block of 'X's of the correct size.
+        # This also handles the case where text might become empty after filtering non-alpha chars.
+        if not splitted_text and size > 0:
+             splitted_text.append('X' * size)
+        elif splitted_text and len(splitted_text[-1]) == 0 and size > 0 : # if last block is empty string
+            splitted_text[-1] = 'X' * size
+
+
         logger.debug("Texte divisé en blocs : %s", splitted_text)
         return splitted_text
 
@@ -222,20 +265,37 @@ class HillCipher():
         :return: texte chiffré ou déchiffré
         """
         logger.debug("Début du chiffrement/déchiffrement du texte.")
-        matrix = self.key_matrix if mod == 0 else self.key_matrix_inverse
-        block_size = len(matrix)
-        text = self.split_text(text, block_size)
-        encrypted_text = ""
-        for block in text:
+        current_key_matrix = self.key_matrix if mod == 0 else self.key_matrix_inverse
+
+        if not current_key_matrix:
+            err_msg = "Matrice de clé non disponible pour le chiffrement." if mod == 0 else "Matrice de clé inverse non disponible pour le déchiffrement."
+            logger.error(err_msg)
+            raise ValueError(err_msg)
+
+        block_size = len(current_key_matrix)
+        text_blocks = self.split_text(text, block_size) # Renamed to avoid conflict
+
+        # Ensure the key matrix is a NumPy array for np.dot()
+        np_key_matrix = np.array(current_key_matrix, dtype=int)
+
+        result_chars = []
+        for block in text_blocks:
             if len(block) != block_size:
-                logger.error("La taille du bloc ne correspond pas à la taille de la matrice.")
+                # This should ideally not happen if split_text works correctly
+                logger.error("La taille du bloc (%d) ne correspond pas à la taille de la matrice (%d). Bloc: '%s'", len(block), block_size, block)
                 raise ValueError("La taille du bloc ne correspond pas à la taille de la matrice.")
-            for i in range(len(block)):
-                somme = 0
-                for j in range(len(block)):
-                    letter_nbr = ord(block[j]) - 65
-                    somme += letter_nbr * matrix[i][j]
-                encrypted_text += chr((somme % 26) + 65)
+
+            # Convert block characters to numerical vector (0-25)
+            block_vector = np.array([ord(char) - 65 for char in block], dtype=int)
+
+            # Perform matrix multiplication: result_vector = key_matrix * block_vector (mod 26)
+            encrypted_vector = np.dot(np_key_matrix, block_vector) % 26
+
+            # Convert numerical vector back to characters
+            for num in encrypted_vector:
+                result_chars.append(chr(num + 65))
+
+        encrypted_text = "".join(result_chars)
         logger.debug("Chiffrement/déchiffrement terminé.")
         return encrypted_text
 
