@@ -24,22 +24,23 @@ class CesarCipher:
         if not chain:
             logger.error("ValueError : La chaîne à chiffrer ne peut pas être vide.")
             raise ValueError("La chaîne à chiffrer ne peut pas être vide.")
-        if not key:
-            logger.error("ValueError : La clé ne peut pas être vide.")
-            raise ValueError("La clé ne peut pas être vide.")
+        # Allow key = 0, as it's a valid shift (no change) and used by Vigenere for key 'A'
+        if key is None: # Or check `not isinstance(key, int)` if 0 should be disallowed for direct Cesar use by policy
+            logger.error("ValueError : La clé ne peut pas être None.") # Adjusted error
+            raise ValueError("La clé ne peut pas être None.") # Adjusted error
         
         logger.debug("Début du chiffrement avec la clé : %d", key)
         if reverse:
             key = -key
-        encoded_chain = ""
+        encoded_chars = []
         for letter in chain:
             car = ord(letter)
-            if 65 <= car <= 90:
-                encoded_chain += chr((car - 65 + key) % 26 + 65)
-            elif 97 <= car <= 122:
-                encoded_chain += chr((car - 97 + key) % 26 + 65)
+            if 65 <= car <= 90:  # Uppercase letters
+                encoded_chars.append(chr((car - 65 + key) % 26 + 65))
+            elif 97 <= car <= 122:  # Lowercase letters
+                encoded_chars.append(chr((car - 97 + key) % 26 + 65))
         logger.debug("Chiffrement terminé.")
-        return encoded_chain
+        return "".join(encoded_chars)
     
     def cesar_decryption(self, chain, key):
         logger.debug("Début du déchiffrement avec la clé : %d", key)

@@ -27,10 +27,19 @@ def test_large_key(cipher):
     assert cipher.cesar_decryption("KHOOR", 29) == "HELLO"
 
 def test_key_zero(cipher):
-    with pytest.raises(ValueError, match="La clé ne peut pas être vide."):
-        cipher.cesar_encryption("HELLO", 0)
-    with pytest.raises(ValueError, match="La clé ne peut pas être vide."):
-        cipher.cesar_decryption("HELLO", 0) == "HELLO"
+    # Encryption with key 0 should return the original string (uppercase, alpha-only)
+    assert cipher.cesar_encryption("HELLO", 0) == "HELLO"
+    assert cipher.cesar_encryption("Hello World!", 0) == "HELLOWORLD"
+    # Decryption with key 0 should also return the original string (uppercase, alpha-only)
+    assert cipher.cesar_decryption("HELLO", 0) == "HELLO"
+    assert cipher.cesar_decryption("Hello World!", 0) == "HELLOWORLD"
+
+def test_key_none(cipher):
+    # None is not an int, so it should be caught by `isinstance(key, int)` check first.
+    with pytest.raises(TypeError, match="La clé doit être un entier."):
+        cipher.cesar_encryption("HELLO", None)
+    with pytest.raises(TypeError, match="La clé doit être un entier."):
+        cipher.cesar_decryption("HELLO", None)
 
 def test_empty_string(cipher):
     with pytest.raises(ValueError, match="La chaîne à chiffrer ne peut pas être vide."):

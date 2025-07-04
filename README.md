@@ -48,7 +48,8 @@ Ce projet a été réalisé dans le cadre du module *Techniques de sécurisation
 3. Configurez les variables d'environnement pour le Hill Cipher dans un fichier `.env` :
    ```properties
    HILL_KEY=[[16,24,20,21],[15,1,12,3],[3,4,7,18],[22,22,5,13]]
-   HILL_KEY_INVERSE=[[7,14,9,9],[14,5,11,5],[9,10,16,1],[11,10,0,10]]
+   # HILL_KEY_INVERSE is optional. If not provided or invalid, it will be calculated from HILL_KEY.
+   # Example: HILL_KEY_INVERSE=[[7,14,9,9],[14,5,11,5],[9,10,16,1],[11,10,0,10]]
    ```
 
 ## Utilisation
